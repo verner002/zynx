@@ -2,7 +2,7 @@
 ; ZyNX Kernel
 ;
 ; Author: Jakub Verner
-; Date: 12-10-2022
+; Date: 19-10-2022
 ;
 
 cpu 486
@@ -75,6 +75,13 @@ mov es, ax
 mov ss, ax
 mov esp, 0x00007c00
 
+call init_vga
+call enable_cur
+
+mov dh, 24
+mov dl, 79
+call set_cur_pos
+
 mov edi, 0x000b8000
 mov ah, 0x0f
 
@@ -86,7 +93,7 @@ cli
 hlt
 jmp halt32
 
-;%include "slibs32/screen.inc"
+%include "slibs32/vga.inc"
 
 ;
 ; .rodata Section

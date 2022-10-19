@@ -36,4 +36,15 @@ jnz .print_char
 ;pop ax
 ret
 
+
+;
+; Get Cursor Position
+;
+; Input: Nothing
+; Output: Nothing
+;
+
+get_cur_pos:
+ret
+
 %endif
