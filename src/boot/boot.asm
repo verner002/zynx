@@ -127,7 +127,9 @@ jnz panic
 
 cmp word [di+0x0005], 0x0386
 jnz panic
+
 mov di, word [di+0x0009]
+
 cmp word di, 0x0000
 jz panic
 
@@ -296,6 +298,7 @@ halt:
 cli
 hlt
 jmp halt
+
 ;
 ; .rodata Section
 ;

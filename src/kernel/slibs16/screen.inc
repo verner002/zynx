@@ -2,14 +2,14 @@
 ; Screen (16-bit) Static Library
 ;
 ; Author: Jakub Verner
-; Date: 12-10-2022
+; Date: 20-10-2022
 ;
 
 %ifndef _SCREEN16
 %define _SCREEN16
 
 ;
-; Print String (16-bit)
+; Print String
 ;
 ; Input: (DS:)SI (null-term char arr ptr)
 ; Output: Nothing
@@ -34,17 +34,6 @@ jnz .print_char
 ;pop si
 ;pop bx
 ;pop ax
-ret
-
-
-;
-; Get Cursor Position
-;
-; Input: Nothing
-; Output: Nothing
-;
-
-get_cur_pos:
 ret
 
 %endif

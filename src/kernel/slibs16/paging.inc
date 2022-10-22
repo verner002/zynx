@@ -1,5 +1,5 @@
 ;
-; Paging Static Library
+; Paging (16-bit) Static Library
 ;
 ; Author: Jakub Verner
 ; Date: 12-10-2022

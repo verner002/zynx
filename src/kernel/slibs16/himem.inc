@@ -1,5 +1,5 @@
 ;
-; Hight Memory Static Library
+; High Memory (16-bit) Static Library
 ;
 ; Author: Jakub Verner
 ; Date: 12-10-2022

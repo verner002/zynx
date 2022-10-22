@@ -2,7 +2,7 @@
 ; ZyNX Kernel
 ;
 ; Author: Jakub Verner
-; Date: 19-10-2022
+; Date: 20-10-2022
 ;
 
 cpu 486
@@ -14,7 +14,7 @@ org 0x9000
 ;
 
 db "ZeXE"       ; Magic number
-db 0x19         ; Type: 16-bit relocatable (0x29 = 32-bit relocatable)
+db 0x19         ; Type: 16-bit executable (0x29 = 32-bit executable)
 dw 0x0386       ; Machine: Intel 80386
 dw 0x0000       ; Version: 0.0.0.0
 dw main16       ; Entry point: main16
@@ -24,6 +24,9 @@ dw main16       ; Entry point: main16
 ;
 
 main16:
+mov si, rodata.enabling_a20
+call print_str16
+
 call check_a20
 jnc .continue
 
@@ -32,6 +35,16 @@ call check_a20
 jc panic16
 
 .continue:
+mov si, rodata.ok
+call print_str16
+
+mov si, rodata.enabling_pm
+call print_str16
+
+mov ah, 0x03
+xor bh, bh
+int 0x10 ; get cur pos
+
 cli
 
 call init_paging
@@ -78,28 +91,40 @@ mov esp, 0x00007c00
 call init_vga
 call enable_cur
 
-mov dh, 24
-mov dl, 79
-call set_cur_pos
+call set_cur_pos32
 
-mov edi, 0x000b8000
-mov ah, 0x0f
+mov esi, rodata.ok
+call print_str32
 
-mov al, '*'
-stosw
+mov esi, rodata.loading_hal
+call print_str32
+
+mov dx, 0x2820
+call init_pics
+call disable_irqs
+
+mov esi, rodata.ok
+call print_str32
 
 halt32:
 cli
 hlt
 jmp halt32
 
-%include "slibs32/vga.inc"
+%include "hal32/vga.inc"
+%include "hal32/pic.inc"
+
+%include "slibs32/screen.inc"
 
 ;
 ; .rodata Section
 ;
 
 rodata:
+.enabling_a20 db "Enabling A20... ", 0x00
+.enabling_pm db "Enabling PM... ", 0x00
+.loading_hal db "Loading HAL... ", 0x00
+.ok db "ok", 0x0a, 0x0d, 0x00
 .panic db "panic", 0x0a, 0x0d, 0x00
 .gdt:
 ; null desc
