@@ -2,7 +2,7 @@
 ; ZyNX Bootloader
 ;
 ; Author: Jakub Verner
-; Date: 12-10-2022
+; Date: 22-10-2022
 ;
 
 cpu 486
@@ -10,10 +10,13 @@ bits 16
 org 0x7c00
 
 ;
-; Constants
+; Magic Numbers
 ;
 
-%define drv_num 0x7b00
+%define DRV_NUM_PTR 0x7b00
+%define STACK_PTR   0x7c00
+%define FAT_PTR     0x7e00
+%define KERNEL_PTR  0x9000
 
 ;
 ; Header
@@ -43,8 +46,8 @@ xor ax, ax
 mov ds, ax
 mov es, ax
 mov ss, ax
-mov sp, 0x7c00
-mov byte [drv_num], dl
+mov sp, STACK_PTR
+mov byte [DRV_NUM_PTR], dl
 cld
 sti
 
@@ -52,7 +55,7 @@ mov si, rodata.loading
 call print_str
 
 movzx ax, byte [sects_res]
-mov bx, 0x7e00
+mov bx, FAT_PTR
 movzx cx, byte [sects_fat]
 call read_sects
 jc panic
@@ -62,7 +65,7 @@ mul byte [sects_clust]
 mov dx, ax
 
 xor ax, ax
-mov bx, 0x9000
+mov bx, KERNEL_PTR
 mov si, rodata.kernel
 
 .read_next_dir_clust:
@@ -116,9 +119,6 @@ add bx, cx
 call calc_next_clust
 jnz .read_next_file_clust
 
-mov si, rodata.ok
-call print_str
-
 cmp dword [di], "ZeXE"
 jnz panic
 
@@ -132,6 +132,9 @@ mov di, word [di+0x0009]
 
 cmp word di, 0x0000
 jz panic
+
+mov si, rodata.ok
+call print_str
 
 jmp di
 
@@ -180,7 +183,7 @@ div byte [heads_cyld]
 mov ch, al
 mov dh, ah
 
-mov dl, byte [drv_num]
+mov dl, byte [DRV_NUM_PTR]
 
 mov di, 0x0002
 

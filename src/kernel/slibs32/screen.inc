@@ -8,6 +8,10 @@
 %ifndef _SCREEN32
 %define _SCREEN32
 
+;
+; Global Variables
+;
+
 _80x25_text:
 ; misc
 db  0x67

@@ -1,12 +1,12 @@
 ;
-; High Memory (16-bit) Static Library
+; Memory (16-bit) Static Library
 ;
 ; Author: Jakub Verner
 ; Date: 12-10-2022
 ;
 
-%ifndef _HIMEM16
-%define _HIMEM16
+%ifndef _MEM16
+%define _MEM16
 
 ;
 ; Check A20 Gate

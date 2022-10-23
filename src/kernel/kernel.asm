@@ -2,7 +2,7 @@
 ; ZyNX Kernel
 ;
 ; Author: Jakub Verner
-; Date: 20-10-2022
+; Date: 22-10-2022
 ;
 
 cpu 486
@@ -72,7 +72,7 @@ hlt
 jmp halt16
 
 %include "slibs16/screen.inc"
-%include "slibs16/himem.inc"
+%include "slibs16/mem.inc"
 %include "slibs16/paging.inc"
 
 bits 32
@@ -103,6 +103,8 @@ mov dx, 0x2820
 call init_pics
 call disable_irqs
 
+call init_pit
+
 mov esi, rodata.ok
 call print_str32
 
@@ -113,8 +115,10 @@ jmp halt32
 
 %include "hal32/vga.inc"
 %include "hal32/pic.inc"
+%include "hal32/pit.inc"
 
 %include "slibs32/screen.inc"
+%include "slibs32/mem.inc"
 
 ;
 ; .rodata Section
@@ -153,3 +157,5 @@ db 0x00         ; base
 .gdt_ptr:
 dw $-.gdt-0x0001
 dd .gdt
+
+;align 0x1000, db 0x00
