@@ -228,4 +228,33 @@ pop esi
 pop ax
 ret
 
+;
+; Print Hexadecimal 32
+;
+; Input: EAX (num)
+; Output: Nothing
+;
+
+print_hex32:
+mov ecx, 0x00000008
+
+.print_digit:
+rol eax, 0x04
+
+push ax
+and al, 0x0f
+
+cmp al, 0x0a
+jb .num
+
+add al, 'a'-'0'-0x0a
+
+.num:
+add al, '0'
+call print_char32
+pop ax
+
+loop .print_digit
+ret
+
 %endif

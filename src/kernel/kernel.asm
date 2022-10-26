@@ -96,6 +96,16 @@ call set_cur_pos32
 mov esi, rodata.ok
 call print_str32
 
+mov esi, rodata.initing_heap
+call print_str32
+
+mov eax, 0x00007c00
+mov edx, 0x00000010
+call init_heap
+
+mov esi, rodata.ok
+call print_str32
+
 mov esi, rodata.loading_hal
 call print_str32
 
@@ -127,6 +137,7 @@ jmp halt32
 rodata:
 .enabling_a20 db "Enabling A20... ", 0x00
 .enabling_pm db "Enabling PM... ", 0x00
+.initing_heap db "Preparing heap... ", 0x00
 .loading_hal db "Loading HAL... ", 0x00
 .ok db "ok", 0x0a, 0x0d, 0x00
 .panic db "panic", 0x0a, 0x0d, 0x00
