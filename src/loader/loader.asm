@@ -1,8 +1,8 @@
 ;
-; ZyNX Kernel
+; ZyNX Loader
 ;
 ; Author: Jakub Verner
-; Date: 22-10-2022
+; Date: 30-10-2022
 ;
 
 cpu 486
@@ -100,7 +100,7 @@ mov esi, rodata.initing_heap
 call print_str32
 
 mov eax, 0x00007c00
-mov edx, 0x00000010
+mov edx, 0x00000100
 call init_heap
 
 mov esi, rodata.ok
@@ -116,6 +116,25 @@ call disable_irqs
 call init_pit
 
 mov esi, rodata.ok
+call print_str32
+
+jmp halt32
+
+;
+; Paging Fault
+;
+
+paging_fault:
+mov esi, rodata.paging_fault
+call print_str32
+;jmp panic32
+
+;
+; Panic
+;
+
+panic32:
+mov esi, rodata.panic
 call print_str32
 
 halt32:
@@ -139,6 +158,7 @@ rodata:
 .enabling_pm db "Enabling PM... ", 0x00
 .initing_heap db "Preparing heap... ", 0x00
 .loading_hal db "Loading HAL... ", 0x00
+.paging_fault db "Paging fault... ", 0x00
 .ok db "ok", 0x0a, 0x0d, 0x00
 .panic db "panic", 0x0a, 0x0d, 0x00
 .gdt:

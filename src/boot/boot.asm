@@ -2,7 +2,7 @@
 ; ZyNX Bootloader
 ;
 ; Author: Jakub Verner
-; Date: 22-10-2022
+; Date: 30-10-2022
 ;
 
 cpu 486
@@ -308,7 +308,7 @@ jmp halt
 
 rodata:
 .loading db "Loading ZyNX... ", 0x00
-.kernel db "kernel  exe"
+.kernel db "loader  exe"
 .ok db "ok", 0x0a, 0x0d, 0x00
 .panic db "panic", 0x0a, 0x0d, 0x00
 
