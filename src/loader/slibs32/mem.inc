@@ -2,88 +2,86 @@
 ; Memory (32-bit) Static Library
 ;
 ; Author: Jakub Verner
-; Date: 29-10-2022
+; Date: 02-11-2022
 ;
 
 %ifndef _MEM32
 %define _MEM32
 
 ;
-; Magic Numbers
-;
-
-%define NULL 0x00000000
-
-%define FALSE 0x00
-%define TRUE !FALSE
-
-;
 ; Block
 ;
 ; Offset:
-;  0x00000000 | byte  | free (usable or not)
-;  0x00000001 | dword | size (without size of block)
-;  0x00000005 | dword | previous (previous block)
-;  0x00000009 | dword | next (next block)
+;  0x00000000 | dword | magic (block identifier)
+;  0x00000004 | byte  | free (usable or not)
+;  0x00000005 | dword | start (start of mem block)
+;  0x00000009 | dword | size (without size of block)
+;  0x0000000d | dword | previous (previous block)
+;  0x00000011 | dword | next (next block)
 ;
 
-%define SZ_OF_BLOCK 0x00000011
+%define SZ_OF_BLOCK 0x00000015
 
-%define MAGIC       0xdeadc0de
+%define MAGIC 0x600dc0fe
 
-%define FREE        0x00000004
-%define SIZE        0x00000005
-%define PREV        0x00000009
-%define NEXT        0x0000000d
+%define FREE    0x00000004
+%define START   0x00000005
+%define SIZE    0x00000009
+%define PREV    0x0000000d    
+%define NEXT    0x00000011
 
 ;
 ; Global Variables
 ;
 
-heap_start dd 0x00000000
-heap_size dd 0x00000000
-
-first_block dd 0x00000000
+first_block dd NULL
 
 ;
-; Initialize Heap
+; Initialize Memory
 ;
-; Input: EAX (heap start), EDX (heap size)
-; Output: Nothing
+; Input: ECX (mem start), EBX (mem size)
+; Output: CF (set on err)
 ;
 
-init_heap:
-mov dword [heap_start], eax
-mov dword [heap_size], edx
+init_mem:
+push eax
+push edi
+mov edi, SZ_OF_BLOCK
+call malloc
+jz .return
 
 mov dword [first_block], eax
 
 mov dword [eax], MAGIC
 mov byte [eax+FREE], TRUE
-mov dword [eax+SIZE], edx
+mov dword [eax+START], ecx
+mov dword [eax+SIZE], ebx
 mov dword [eax+PREV], NULL
 mov dword [eax+NEXT], NULL
+
+.return:
+pop edi
+pop eax
 ret
 
 ;
-; Memory Allocation
+; Block Allocation
 ;
-; Input: EDI (size)
-; Output: EAX (ptr or null)
+; Input: EDI (size in bytes)
+; Output: EAX (block ptr)
 ;
 
-malloc:
-push ebp
-mov ebp, esp
+balloc:
+;push ebp
+;mov ebp, esp
 ;sub esp, [value]
-
 cmp edi, 0x00000000
 je .return_null
 
 mov eax, dword [first_block]
 
 .do:
-test byte [eax+FREE], 0xff ; BYTE [EAX+FREE] == TRUE?
+test byte [eax+FREE], 0xff
 jz .continue
 
 mov edx, dword [eax+SIZE]
@@ -92,9 +90,14 @@ cmp edx, edi
 jb .continue
 je .dont_split
 
+push eax
+push edi
+mov edi, SZ_OF_BLOCK
+call malloc
+;jz .terminate
 mov ebx, eax
-add ebx, edi
-add ebx, SZ_OF_BLOCK
+pop edi
+pop eax
 
 mov dword [ebx], MAGIC
 mov byte [ebx+FREE], TRUE
@@ -102,6 +105,11 @@ mov byte [ebx+FREE], TRUE
 sub edx, edi
 mov dword [ebx+SIZE], edx
 mov dword [ebx+PREV], eax
+
+mov edx, edi
+;shl edx, 0x0a ; to bytes - already is in bytes
+add edx, dword [eax+START]
+mov dword [ebx+START], edx
 
 mov edx, dword [eax+NEXT]
 mov dword [ebx+NEXT], edx
@@ -118,50 +126,48 @@ mov dword [eax+NEXT], ebx
 .dont_split:
 mov byte [eax+FREE], FALSE
 
-add eax, SZ_OF_BLOCK
+;mov eax, dword [eax+START]
 jmp .return
 
 .continue:
 mov eax, dword [eax+NEXT]
 
-test eax, 0xffffffff ; EAX == NULL?
+test eax, 0xffffffff
 jnz .do
 
 .return_null:
 xor eax, eax
 
 .return:
-leave
+;leave
 ret
 
 ;
-; Free
+; Block Free
 ;
-; Input: EDI (ptr to block)
+; Input: EDI (addr)
 ; Output: Nothing
 ;
 
-free:
-push ebp
-mov ebp, esp
+bfree:
+;push ebp
+;mov ebp, esp
 ;sub esp, [value]
-
-sub edi, SZ_OF_BLOCK
-
+pusha
 cmp dword [edi], MAGIC
-jnz .return
+jnz .dont_change_first_block
 
-test byte [edi+FREE], 0xff ; BYTE [EDI+FREE] == TRUE?
-jnz .return
+test byte [edi+FREE], 0xff
+jnz .dont_change_first_block
 
 mov byte [edi+FREE], TRUE
 
 mov eax, dword [edi+NEXT]
 
-test eax, 0xff ; EAX == NULL?
+test eax, 0xffffffff
 jz .try_prev
 
-test byte [eax+FREE], 0xff ; BYTE [EAX+FREE] == TRUE?
+test byte [eax+FREE], 0xff
 jz .try_prev
 
 call .merge
@@ -169,10 +175,10 @@ call .merge
 .try_prev:
 mov eax, dword [edi+PREV]
 
-test eax, 0xff ; EAX == NULL?
+test eax, 0xffffffff
 jz .return
 
-test byte [eax+FREE], 0xff ; BYTE [EAX+FREE] == TRUE?
+test byte [eax+FREE], 0xff
 jz .return
 
 mov edi, eax
@@ -180,9 +186,14 @@ mov edi, eax
 call .merge
 
 .return:
+cmp dword [first_block], edi
+jna .dont_change_first_block
+
 mov dword [first_block], edi
 
-leave
+.dont_change_first_block:
+popa
+;leave
 ret
 
 .merge:
@@ -194,82 +205,5 @@ add dword [edi+SIZE], ecx
 mov ecx, dword [ebx+NEXT]
 mov dword [edi+NEXT], ecx
 ret
-
-;
-; Find The Smallest Possible Block
-;
-; Input: EDX (req size in bytes)
-; Output: EDX (addr or NULL)
-;
-
-;find_small_block:
-;push ebp
-;mov ebp, esp
-;sub esp, [value] - reserve space
-
-;mov eax, dword [first_block]
-;mov dword [FOUND_BLOCK], NULL
-
-;cmp edx, 0x00000000
-;jz .return_null
-
-;.do_while:
-;cmp byte [eax], TRUE
-;jnz .skip
-
-;mov ebx, dword [eax+SIZE]
-
-;cmp ebx, edx
-;jb .skip
-
-;cmp dword [FOUND_BLOCK], NULL
-;jz .continue
-
-;mov ecx, dword [FOUND_BLOCK]
-
-;cmp ebx, dword [ecx+SIZE]
-;jnb .skip
-
-;.continue:
-;mov dword [FOUND_BLOCK], eax
-
-;cmp dword [eax+SIZE], edx
-;jz .return
-
-;.skip:
-;mov eax, dword [eax+NEXT]
-
-;cmp eax, NULL
-;jnz .do_while
-
-;.return:
-;cmp dword [FOUND_BLOCK], NULL
-;jz .return_null
-
-;
-; TODO: Create a new block which will represent
-;  the remaining free memory. The first_block
-;  will contain the address of this new block.
-;
-
-;mov dword [ebp-0x00000008], 
-
-;add dword [FOUND_BLOCK], SZ_OF_BLOCK
-
-;.return_null:
-;mov edx, dword [FOUND_BLOCK]
-
-;leave
-;ret
-
-;
-; Find The Largest Possible Block
-;
-; Input: EDX (req size in bytes)
-; Output: EDX (addr or NULL)
-;
-
-;find_large_block:
-;ret
 
 %endif

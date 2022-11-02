@@ -2,7 +2,7 @@
 ; Paging (16-bit) Static Library
 ;
 ; Author: Jakub Verner
-; Date: 12-10-2022
+; Date: 02-11-2022
 ;
 
 %ifndef _PAGING16
@@ -14,29 +14,30 @@
 ; Input: Nothing
 ; Output: Nothing
 ;
+; Note:
+;  Prepares a page directory and self
+;  maps first MiB.
+;
 
 init_paging:
 pusha
-mov cx, 0x0400
-mov di, 0xa000
+mov cx, 0x0400 ; num of pg dir entries
+mov di, 0xe000 ; pg dir addr
+movzx ebx, di
 
 mov eax, 0x00000002
-rep stosd
-
-xor ecx, ecx
-;mov di, 0xb000
+rep stosd ; all pg dir entries not present
 
 .fill_entries:
-mov eax, ecx
-shl eax, 0x0c
-or al, 0x03
+movzx eax, cl
+shl eax, 0x0c ; translate to addr
+or al, 0x03 ; r/w and present
 stosd
 inc cl
 jnz .fill_entries
 
-mov ebx, 0x0000a000
-mov dword [bx], 0x0000b003
-mov cr3, ebx
+mov dword [bx], 0x0000f003
+mov cr3, ebx ; load pg dir
 popa
 ret
 

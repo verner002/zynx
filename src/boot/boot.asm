@@ -307,10 +307,10 @@ jmp halt
 ;
 
 rodata:
-.loading db "Loading ZyNX... ", 0x00
+.loading db "loading zynx... ", 0x00
 .kernel db "loader  exe"
 .ok db "ok", 0x0a, 0x0d, 0x00
-.panic db "panic", 0x0a, 0x0d, 0x00
+.panic db "panic!", 0x0a, 0x0d, 0x00
 
 times 0x01fe-($-$$) db 0x00
 dw 0xaa55
