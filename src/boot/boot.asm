@@ -2,7 +2,7 @@
 ; ZyNX Bootloader
 ;
 ; Author: Jakub Verner
-; Date: 30-10-2022
+; Date: 03-11-2022
 ;
 
 cpu 486
@@ -119,7 +119,7 @@ add bx, cx
 call calc_next_clust
 jnz .read_next_file_clust
 
-cmp dword [di], "ZeXE"
+cmp dword [di], "zexe"
 jnz panic
 
 cmp byte [di+0x0004], 0x19

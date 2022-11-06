@@ -2,7 +2,7 @@
 ; Memory (32-bit) Static Library
 ;
 ; Author: Jakub Verner
-; Date: 02-11-2022
+; Date: 03-11-2022
 ;
 
 %ifndef _MEM32
@@ -48,7 +48,7 @@ push eax
 push edi
 mov edi, SZ_OF_BLOCK
 call malloc
-jz .return
+jz .terminate
 
 mov dword [first_block], eax
 
@@ -59,22 +59,31 @@ mov dword [eax+SIZE], ebx
 mov dword [eax+PREV], NULL
 mov dword [eax+NEXT], NULL
 
-.return:
 pop edi
 pop eax
+clc
+ret
+
+.terminate:
+pop edi
+pop eax
+stc
 ret
 
 ;
-; Block Allocation
+; Reserve Area
 ;
 ; Input: EDI (size in bytes)
 ; Output: EAX (block ptr)
 ;
 
-balloc:
+reserve_area:
 ;push ebp
 ;mov ebp, esp
 ;sub esp, [value]
+push ebx
+push edx
+
 cmp edi, 0x00000000
 je .return_null
 
@@ -139,17 +148,19 @@ jnz .do
 xor eax, eax
 
 .return:
+pop edx
+pop ebx
 ;leave
 ret
 
 ;
-; Block Free
+; Release Area
 ;
 ; Input: EDI (addr)
 ; Output: Nothing
 ;
 
-bfree:
+release_area:
 ;push ebp
 ;mov ebp, esp
 ;sub esp, [value]

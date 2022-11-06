@@ -2,7 +2,7 @@
 ; ZyNX Loader
 ;
 ; Author: Jakub Verner
-; Date: 02-11-2022
+; Date: 06-11-2022
 ;
 
 cpu 486
@@ -15,7 +15,7 @@ org 0x9000
 ; .head
 ;
 
-db "ZeXE"       ; Magic number
+db "zexe"       ; Magic number
 db 0x19         ; Type: 16-bit executable (0x29 = 32-bit executable)
 dw 0x0386       ; Machine: Intel 80386
 dw 0x0000       ; Version: 0.0.0.0
@@ -63,16 +63,17 @@ movzx ebx, bx
 
 shl ebx, 0x06
 
-add eax, ebx
-add eax, 0x00000400
+add ebx, eax
+add ebx, 0x00000400
 
-push ax
+cmp ebx, 0x00001000 ; 4 MiB
+jb panic16
+
+push bx
 mov ah, 0x03
 xor bh, bh
 int 0x10 ; get cur pos
-pop ax
-
-mov ebx, eax
+pop bx
 
 cli
 
@@ -163,28 +164,57 @@ call init_heap
 mov esi, rodata.ok
 call print_str32
 
-;mov esi, rodata.preparing_mem
-;call print_str32
+mov esi, rodata.preparing_mem
+call print_str32
 
-;sub ebx, 0x00000400
-;shl ebx, 0x0a ; to bytes
-;mov ecx, 0x00020000
-;call init_mem
+sub ebx, 0x00000400
+shl ebx, 0x0a ; to bytes
+mov ecx, 0x00020000
+call init_mem
 
-;mov esi, rodata.ok
-;call print_str32
+mov esi, rodata.ok
+call print_str32
 
 mov esi, rodata.loading_hal
 call print_str32
 
 mov dx, 0x2820
 call init_pics
+
 call disable_irqs
 
 call init_pit
 
+call init_ps2
+
+call disable_kbd_scan
+jc panic32
+
+call reset_kbd
+jc panic32
+
+call echo_kbd
+jc panic32
+
+mov dl, 0x00 ; turn off leds
+call set_leds_kbd
+jc panic32
+
+mov al, 0x21
+mov bx, 0x0008
+mov edx, kbd_handler
+call set_handler
+
+mov cl, 0x01
+call enable_irq
+
+call enable_kbd_scan
+jc panic32
+
 mov esi, rodata.ok
 call print_str32
+
+sti ; it's save now to turn on the ints
 
 ;mov edi, 0x0000a000 ; curr page dir addr
 ;call crte_page_tbl
@@ -194,7 +224,7 @@ call print_str32
 ;mov di, 0x0002
 ;call map_page
 
-jmp halt32
+jmp $
 
 ;
 ; General Protection Fault
@@ -212,7 +242,29 @@ jmp panic32
 page_fault:
 mov esi, rodata.page_fault
 call print_str32
-;jmp panic32
+jmp panic32
+
+;
+; Keyboard Handler
+;
+
+kbd_handler:
+pushad
+cli
+call read_kbd_ans
+jc .timeout
+
+and eax, 0x000000ff
+call print_hex32
+
+.timeout:
+mov cl, 0x01
+call send_eoi
+sti
+popad
+iretd
+
+.ext db 0x00
 
 ;
 ; Panic
@@ -230,11 +282,13 @@ jmp halt32
 %include "hal32/vga.inc"
 %include "hal32/pic.inc"
 %include "hal32/pit.inc"
+%include "hal32/ps2.inc"
+%include "hal32/kbd.inc"
 %include "hal32/idt.inc"
 
 %include "slibs32/screen.inc"
 %include "slibs32/heap.inc"
-;%include "slibs32/mem.inc"
+%include "slibs32/mem.inc"
 ;%include "slibs32/paging.inc"
 
 ;
