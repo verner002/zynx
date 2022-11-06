@@ -32,7 +32,18 @@ call print_str16
 call check_a20
 jnc .continue
 
-call enable_a20
+call enable_a20_bios
+
+call check_a20
+jnc .continue
+
+call enable_a20_kbd
+
+call check_a20
+jnc .continue
+
+call enable_a20_p92
+
 call check_a20
 jc panic16
 
