@@ -48,10 +48,13 @@ xor cx, cx
 xor dx, dx
 int 0x15
 jc panic16
+
 cmp ah, 0x86
 jz panic16
+
 cmp ah, 0x80
 jz panic16
+
 jcxz .axbx
 
 mov ax, cx
@@ -196,7 +199,7 @@ jc panic32
 call echo_kbd
 jc panic32
 
-mov dl, 0x00 ; turn off leds
+mov dl, KBD_LED_NUM
 call set_leds_kbd
 jc panic32
 
@@ -247,24 +250,63 @@ jmp panic32
 ;
 ; Keyboard Handler
 ;
+; Scan Code Set 2
+;
 
 kbd_handler:
 pushad
 cli
 call read_kbd_ans
-jc .timeout
+jc .return
 
-and eax, 0x000000ff
-call print_hex32
+cmp al, 0xf0 ; break code
+jnz .make
 
-.timeout:
+call read_kbd_ans
+jc .return
+jmp .return
+
+.make:
+cmp al, 0xe7
+jz .togg_scroll
+
+cmp al, 0x77
+jz .togg_num
+
+cmp al, 0x58
+jz .togg_caps
+
+.return:
 mov cl, 0x01
 call send_eoi
 sti
 popad
 iretd
 
-.ext db 0x00
+.togg_scroll:
+not byte [.scroll]
+jmp .set_leds
+
+.togg_num:
+not byte [.num]
+jmp .set_leds
+
+.togg_caps:
+not byte [.caps]
+;jmp .set_leds
+
+.set_leds:
+mov dl, byte [.caps]
+shl dl, 0x01
+or dl, byte [.num]
+shl dl, 0x01
+or dl, byte [.scroll]
+call set_leds_kbd
+jmp .return
+
+.scroll db 0x00
+.num db 0x00
+.caps db 0x00
 
 ;
 ; Panic

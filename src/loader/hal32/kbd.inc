@@ -326,22 +326,28 @@ ret
 
 send_kbd_cmd:
 push ax
-mov cl, 0x03
+push cx
+mov cl, 0xff ; this delay is really important!!!
 
 .again:
 in al, 0x64
+
 test al, 0x02
 jz .send_cmd
+
 dec cl
 jnz .again
+
+pop cx
 pop ax
 stc
 ret
 
 .send_cmd:
+pop cx
 pop ax
 out 0x60, al
-clc
+;clc
 ret
 
 ;
@@ -353,22 +359,28 @@ ret
 
 read_kbd_ans:
 push ax
-mov cl, 0x03
+push cx
+mov cl, 0xff ; this delay is really important!!!
 
 .again:
 in al, 0x64
+
 test al, 0x01
 jnz .read_answer
+
 dec cl
 jnz .again
+
+pop cx
 pop ax
 stc
 ret
 
 .read_answer:
+pop cx
 pop ax
 in al, 0x60
-clc
+;clc
 ret
 
 %endif
