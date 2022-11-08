@@ -2,7 +2,7 @@
 ; ZyNX Loader
 ;
 ; Author: Jakub Verner
-; Date: 06-11-2022
+; Date: 07-11-2022
 ;
 
 cpu 486
@@ -214,6 +214,24 @@ mov dl, KBD_LED_NUM
 call set_leds_kbd
 jc panic32
 
+mov dl, 0x03
+call set_scan_kbd
+jc panic32
+
+call get_scan_kbd
+jc panic32
+
+cmp dl, 0x3f
+jz .scan_code_set_ok
+
+cmp dl, 0x03
+jnz panic32
+
+.scan_code_set_ok:
+;call read_kbd_ans
+;and eax, 0x000000ff
+;call print_hex32
+
 mov al, 0x21
 mov bx, 0x0008
 mov edx, kbd_handler
@@ -238,7 +256,21 @@ sti ; it's save now to turn on the ints
 ;mov di, 0x0002
 ;call map_page
 
-jmp $
+.print_sca:
+xor dx, dx
+call set_cur_pos32
+
+movzx eax, byte [shift]
+shl eax, 0x08
+movzx ebx, byte [ctrl]
+or eax, ebx
+shl eax, 0x08
+movzx ebx, byte [alt]
+or eax, ebx
+
+call print_hex32
+
+jmp .print_sca
 
 ;
 ; General Protection Fault
@@ -261,7 +293,7 @@ jmp panic32
 ;
 ; Keyboard Handler
 ;
-; Scan Code Set 2
+; Scan Code Set 3
 ;
 
 kbd_handler:
@@ -270,14 +302,12 @@ cli
 call read_kbd_ans
 jc .return
 
+cmp al, 0xe0 ; extended
+jz .return
+
 cmp al, 0xf0 ; break code
-jnz .make
+jz .breakcode
 
-call read_kbd_ans
-jc .return
-jmp .return
-
-.make:
 cmp al, 0xe7
 jz .togg_scroll
 
@@ -287,6 +317,15 @@ jz .togg_num
 cmp al, 0x58
 jz .togg_caps
 
+cmp al, 0x12
+jz .enable_shift
+
+cmp al, 0x11
+jz .enable_ctrl
+
+cmp al, 0x19
+jz .enable_alt
+
 .return:
 mov cl, 0x01
 call send_eoi
@@ -294,30 +333,72 @@ sti
 popad
 iretd
 
+.enable_shift:
+mov byte [shift], 0xff
+jmp .return
+
+.enable_ctrl:
+mov byte [ctrl], 0xff
+jmp .return
+
+.enable_alt:
+mov byte [alt], 0xff
+jmp .return
+
+.breakcode:
+call read_kbd_ans
+jc .return
+
+cmp al, 0x12
+jz .disable_shift
+
+cmp al, 0x11
+jz .disable_ctrl
+
+cmp al, 0x19
+jz .disable_alt
+jmp .return
+
+.disable_shift:
+mov byte [shift], 0x00
+jmp .return
+
+.disable_ctrl:
+mov byte [ctrl], 0x00
+jmp .return
+
+.disable_alt:
+mov byte [alt], 0x00
+jmp .return
+
 .togg_scroll:
-not byte [.scroll]
+not byte [scroll]
 jmp .set_leds
 
 .togg_num:
-not byte [.num]
+not byte [num]
 jmp .set_leds
 
 .togg_caps:
-not byte [.caps]
+not byte [caps]
 ;jmp .set_leds
 
 .set_leds:
-mov dl, byte [.caps]
+mov dl, byte [caps]
 shl dl, 0x01
-or dl, byte [.num]
+or dl, byte [num]
 shl dl, 0x01
-or dl, byte [.scroll]
+or dl, byte [scroll]
 call set_leds_kbd
 jmp .return
 
-.scroll db 0x00
-.num db 0x00
-.caps db 0x00
+scroll db 0x00
+num db 0xff
+caps db 0x00
+
+shift db 0x00
+ctrl db 0x00
+alt db 0x00
 
 ;
 ; Panic

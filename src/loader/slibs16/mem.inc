@@ -32,18 +32,12 @@ mov es, ax
 mov si, 0x7dfe
 mov di, 0x7e0e
 
-mov byte [es:di], 0xaa
-cmp byte [si], 0xaa
-mov byte [es:di], 0x55 ; restore data
+mov word [es:di], 0x55aa ; change data
+
+cmp word [si], 0x55aa ; has changed?
 jnz .return
 
-inc si
-inc di
-
-mov byte [es:di], 0x55
-cmp byte [si], 0x55
-mov byte [es:di], 0xaa ; restore data
-jnz .return
+mov word [es:di], 0xaa55 ; restore data
 
 pop di
 pop si

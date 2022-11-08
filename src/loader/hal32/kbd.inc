@@ -166,10 +166,144 @@ pop ax
 ret
 
 ;
+; Get Scan Code Set
+;
+; Input: Nothing
+; Output: DL (scan code set num), CF (set on timeout)
+;
+
+get_scan_kbd:
+push ax
+push cx
+mov cl, 0x03
+
+.again_get_scan:
+mov al, 0xf0
+call send_kbd_cmd
+jc .terminate
+
+call read_kbd_ans
+jc .terminate
+
+cmp al, 0xfa
+jz .send_get_scan
+
+cmp al, 0x0fe
+jnz .terminate
+
+dec cl
+jnz .again_get_scan
+
+.terminate:
+pop cx
+pop ax
+stc
+ret
+
+.send_get_scan:
+mov cl, 0x03
+
+.again_send_data:
+xor al, al
+call send_kbd_cmd
+jc .terminate
+
+call read_kbd_ans
+jc .terminate
+
+cmp al, 0xfa
+jz .return
+
+cmp al, 0xfe
+jnz .terminate
+
+dec cl
+jnz .again_send_data
+jmp .terminate
+
+.return:
+call read_kbd_ans
+jc .terminate
+
+mov dl, al
+pop cx
+pop ax
+;clc
+ret
+
+;
+; Set Scan Code Set
+;
+; Input: DL (scan code set num)
+; Output: CF (set on timeout)
+;
+
+set_scan_kbd:
+push ax
+push cx
+or dl, dl
+jz .terminate
+
+cmp dl, 0x03
+ja .terminate
+
+mov cl, 0x03
+
+.again_set_scan:
+mov al, 0xf0
+call send_kbd_cmd
+jc .terminate
+
+call read_kbd_ans
+jc .terminate
+
+cmp al, 0xfa
+jz .send_scan_num
+
+cmp al, 0x0fe
+jnz .terminate
+
+dec cl
+jnz .again_set_scan
+
+.terminate:
+pop cx
+pop ax
+stc
+ret
+
+.send_scan_num:
+mov cl, 0x03
+
+.again_send_data:
+mov al, dl
+call send_kbd_cmd
+jc .terminate
+
+call read_kbd_ans
+jc .terminate
+
+cmp al, 0xfa
+jz .return
+
+cmp al, 0xfe
+jnz .terminate
+
+dec cl
+jnz .again_send_data
+jmp .terminate
+
+.return:
+pop cx
+pop ax
+;clc
+ret
+
+;
 ; Identify Keyboard
 ;
 ; Input: Nothing
-; Output: Nothing
+; Output: CF (set on timeout)
 ;
 
 ident_kbd:
@@ -327,7 +461,7 @@ ret
 send_kbd_cmd:
 push ax
 push cx
-mov cl, 0xff ; this delay is really important!!!
+mov cx, 0xffff ; this delay is really important!!!
 
 .again:
 in al, 0x64
@@ -335,7 +469,7 @@ in al, 0x64
 test al, 0x02
 jz .send_cmd
 
-dec cl
+dec cx
 jnz .again
 
 pop cx
@@ -360,7 +494,7 @@ ret
 read_kbd_ans:
 push ax
 push cx
-mov cl, 0xff ; this delay is really important!!!
+mov cx, 0xffff ; this delay is really important!!!
 
 .again:
 in al, 0x64
@@ -368,7 +502,7 @@ in al, 0x64
 test al, 0x01
 jnz .read_answer
 
-dec cl
+dec cx
 jnz .again
 
 pop cx
