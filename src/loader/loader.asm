@@ -2,12 +2,14 @@
 ; ZyNX Loader
 ;
 ; Author: Jakub Verner
-; Date: 07-11-2022
+; Date: 14-11-2022
 ;
 
 cpu 486
 bits 16
 org 0x9000
+
+;%define _DEBUG
 
 %include "../defs.inc"
 
@@ -228,10 +230,6 @@ cmp dl, 0x03
 jnz panic32
 
 .scan_code_set_ok:
-;call read_kbd_ans
-;and eax, 0x000000ff
-;call print_hex32
-
 mov al, 0x21
 mov bx, 0x0008
 mov edx, kbd_handler
@@ -243,10 +241,12 @@ call enable_irq
 call enable_kbd_scan
 jc panic32
 
-mov esi, rodata.ok
-call print_str32
+call init_dmacs
 
 sti ; it's save now to turn on the ints
+
+mov esi, rodata.ok
+call print_str32
 
 ;mov edi, 0x0000a000 ; curr page dir addr
 ;call crte_page_tbl
@@ -256,21 +256,28 @@ sti ; it's save now to turn on the ints
 ;mov di, 0x0002
 ;call map_page
 
-.print_sca:
-xor dx, dx
-call set_cur_pos32
+.wait_for_key:
+test byte [pressed], 0xff
+jz .wait_for_key
 
-movzx eax, byte [shift]
-shl eax, 0x08
-movzx ebx, byte [ctrl]
-or eax, ebx
-shl eax, 0x08
-movzx ebx, byte [alt]
-or eax, ebx
+movzx eax, byte [scan_code]
+
+cmp al, 0x5a
+jz .proc_enter
 
 call print_hex32
 
-jmp .print_sca
+.key_read:
+mov byte [pressed], 0x00
+jmp .wait_for_key
+
+.proc_enter:
+mov al, 0x0a
+call print_char32
+
+mov al, 0x0d
+call print_char32
+jmp .key_read
 
 ;
 ; General Protection Fault
@@ -302,19 +309,16 @@ cli
 call read_kbd_ans
 jc .return
 
-cmp al, 0xe0 ; extended
-jz .return
-
 cmp al, 0xf0 ; break code
 jz .breakcode
 
-cmp al, 0xe7
+cmp al, 0x5f
 jz .togg_scroll
 
-cmp al, 0x77
+cmp al, 0x76
 jz .togg_num
 
-cmp al, 0x58
+cmp al, 0x14
 jz .togg_caps
 
 cmp al, 0x12
@@ -325,6 +329,9 @@ jz .enable_ctrl
 
 cmp al, 0x19
 jz .enable_alt
+
+mov byte [scan_code], al
+mov byte [pressed], 0xff
 
 .return:
 mov cl, 0x01
@@ -392,6 +399,9 @@ or dl, byte [scroll]
 call set_leds_kbd
 jmp .return
 
+scan_code db 0x00
+pressed db 0x00
+
 scroll db 0x00
 num db 0xff
 caps db 0x00
@@ -405,8 +415,55 @@ alt db 0x00
 ;
 
 panic32:
+%ifdef _DEBUG
+push esi
+%endif
 mov esi, rodata.panic
 call print_str32
+%ifdef _DEBUG
+pop esi
+%endif
+
+%ifdef _DEBUG
+call print_hex32
+
+call print_nl
+
+mov eax, ebx
+call print_hex32
+
+call print_nl
+
+mov eax, ecx
+call print_hex32
+
+call print_nl
+
+mov eax, edx
+call print_hex32
+
+call print_nl
+
+mov eax, esi
+call print_hex32
+
+call print_nl
+
+mov eax, edi
+call print_hex32
+
+call print_nl
+
+mov eax, ebp
+call print_hex32
+
+call print_nl
+
+mov eax, esp
+call print_hex32
+
+call print_nl
+%endif
 
 halt32:
 cli
@@ -414,11 +471,12 @@ hlt
 jmp halt32
 
 %include "hal32/vga.inc"
+%include "hal32/idt.inc"
 %include "hal32/pic.inc"
 %include "hal32/pit.inc"
 %include "hal32/ps2.inc"
 %include "hal32/kbd.inc"
-%include "hal32/idt.inc"
+%include "hal32/dma.inc"
 
 %include "slibs32/screen.inc"
 %include "slibs32/heap.inc"

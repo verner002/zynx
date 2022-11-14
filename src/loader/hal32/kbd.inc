@@ -2,7 +2,7 @@
 ; Keyboard (32-bit) Static Library
 ;
 ; Author: Jakub Verner
-; Date: 06-11-2022
+; Date: 14-11-2022
 ;
 
 cpu 486
@@ -398,6 +398,9 @@ jc .terminate
 cmp al, 0xfa
 jz .return
 
+cmp al, 0xfe
+jnz .terminate
+
 dec cl
 jnz .again
 
@@ -435,6 +438,9 @@ jc .terminate
 
 cmp al, 0xfa
 jz .return
+
+cmp al, 0xfe
+jnz .terminate
 
 dec cl
 jnz .again
@@ -493,8 +499,8 @@ ret
 
 read_kbd_ans:
 push ax
-push cx
-mov cx, 0xffff ; this delay is really important!!!
+push ecx
+mov ecx, 0x000fffff ; this delay is really important!!!
 
 .again:
 in al, 0x64
@@ -502,16 +508,16 @@ in al, 0x64
 test al, 0x01
 jnz .read_answer
 
-dec cx
+dec ecx
 jnz .again
 
-pop cx
+pop ecx
 pop ax
 stc
 ret
 
 .read_answer:
-pop cx
+pop ecx
 pop ax
 in al, 0x60
 ;clc

@@ -2,7 +2,7 @@
 ; Screen (32-bit) Static Library
 ;
 ; Author: Jakub Verner
-; Date: 22-10-2022
+; Date: 14-11-2022
 ;
 
 %ifndef _SCREEN32
@@ -229,6 +229,23 @@ pop ax
 ret
 
 ;
+; Print New Line
+;
+; Input: Nothing
+; Output: Nothing
+;
+
+print_nl:
+push ax
+mov al, 0x0a
+call print_char32
+
+mov al, 0x0d
+call print_char32
+pop ax
+ret
+
+;
 ; Print Hexadecimal 32
 ;
 ; Input: EAX (num)
@@ -236,6 +253,7 @@ ret
 ;
 
 print_hex32:
+push ecx
 mov ecx, 0x00000008
 
 .print_digit:
@@ -255,6 +273,7 @@ call print_char32
 pop ax
 
 loop .print_digit
+pop ecx
 ret
 
 %endif

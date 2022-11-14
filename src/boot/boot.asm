@@ -223,16 +223,26 @@ pusha
 clc
 
 .read_sect:
-jc .terminate
+jc .inc_es
+
+.continue:
 call read_sect
 jc .terminate
 
 inc ax
 add bx, 0x0200
+
 loop .read_sect
 popa
 clc ; because of add bx, ...
 ret
+
+.inc_es:
+mov dx, es
+add dx, 0x1000
+jz .terminate
+mov es, dx
+jmp .continue
 
 .terminate:
 popa
