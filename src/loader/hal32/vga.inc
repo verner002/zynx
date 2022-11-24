@@ -2,7 +2,7 @@
 ; VGA (32-bit) Static Library
 ;
 ; Author: Jakub Verner
-; Date: 20-10-2022
+; Date: 22-11-2022
 ;
 
 cpu 486
@@ -90,19 +90,18 @@ in al, dx
 mov dx, 0x03c0
 mov al, 0x20
 out dx, al
-
-popa
+popad
 ret
 
 ;
-; Set Cursor Position
+; Write Cursor Location Register
 ;
 ; Input: DH (row), DL (column)
 ; Output: Nothing
 ;
 
-set_cur_pos:
-pushad
+write_cur_loc_reg:
+pusha
 movzx ax, dh
 mov bl, 0x50
 mul bl
@@ -116,7 +115,7 @@ call write_reg
 mov al, ah
 mov cl, 0x0e
 call write_reg
-popad
+popa
 ret
 
 ;
@@ -127,14 +126,14 @@ ret
 ;
 
 enable_cur:
-pushad
+pusha
 mov cl, 0x0a
 mov dx, 0x03d4
 call read_reg
 
 and al, 0xdf
 call write_reg
-popad
+popa
 ret
 
 ;
@@ -145,14 +144,14 @@ ret
 ;
 
 disable_cur:
-pushad
+pusha
 mov cl, 0x0a
 mov dx, 0x03d4
 call read_reg
 
 or al, 0x20
 call write_reg
-popad
+popa
 ret
 
 ;

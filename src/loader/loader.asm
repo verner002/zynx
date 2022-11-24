@@ -1,31 +1,22 @@
 ;
-; ZyNX Loader
+; ZyNX Kernel
 ;
 ; Author: Jakub Verner
-; Date: 14-11-2022
+; Date: 24-11-2022
 ;
 
 cpu 486
-bits 16
-org 0x9000
+org 0x2000
 
 ;%define _DEBUG
 
-%include "../defs.inc"
-
-;
-; .head
-;
-
-db "zexe"       ; Magic number
-db 0x19         ; Type: 16-bit executable (0x29 = 32-bit executable)
-dw 0x0386       ; Machine: Intel 80386
-dw 0x0000       ; Version: 0.0.0.0
-dw main16       ; Entry point: main16
+%include "defs.inc"
 
 ;
 ; .text16 Section
 ;
+
+bits 16
 
 main16:
 mov si, rodata.enabling_a20
@@ -53,10 +44,26 @@ jc panic16
 mov si, rodata.ok
 call print_str16
 
+mov si, rodata.loading_drivers
+call print_str16
+
+mov bx, 0x1000
+mov es, bx
+xor bx, bx ; ES:BX = 0x00010000
+
+mov si, rodata.fdd_drv
+call load_file
+jc panic16
+
+mov es, bx
+
+mov si, rodata.ok
+call print_str16
+
 mov si, rodata.enabling_pm
 call print_str16
 
-mov ax, 0xe801
+mov ax, 0xe801 ; handles mem holes under 16 MiB
 xor cx, cx
 xor dx, dx
 int 0x15
@@ -70,26 +77,41 @@ jz panic16
 
 jcxz .axbx
 
-mov ax, cx
+;mov ax, cx
 mov bx, dx
 
 .axbx:
-movzx eax, ax
+;movzx eax, ax
 movzx ebx, bx
 
-shl ebx, 0x06
+shl ebx, 0x06 ; mem size above 16 MiB
+jz panic16
 
-add ebx, eax
-add ebx, 0x00000400
+add ebx, 0x00004000 ; 16 MiB
 
-cmp ebx, 0x00001000 ; 4 MiB
+cmp ebx, 0x00020000 ; 128 MiB
 jb panic16
 
-push bx
+mov dword [MEM_SIZE_PTR], ebx
+
+sub ebx, 0x00000004 ; subs 4 KiBs cuz of GDT limit
+
+shr ebx, 0x02 ; to pages
+mov word [rodata.gdt+0x0008], bx
+mov word [rodata.gdt+0x0010], bx
+
+shr ebx, 0x10
+or bl, 11000000b
+mov byte [rodata.gdt+0x0008+0x0006], bl
+mov byte [rodata.gdt+0x0010+0x0006], bl
+
 mov ah, 0x03
 xor bh, bh
 int 0x10 ; get cur pos
-pop bx
+
+mov word [CUR_POS_PTR], dx
+
+call turn_off_motor
 
 cli
 
@@ -99,16 +121,12 @@ lgdt [rodata.gdt_ptr]
 lidt [rodata.idt_ptr]
 
 mov eax, cr0
-or eax, 0x80000001 ; enable pg and pe
+or eax, 0x80050001 ; enable pg, pe and wr protect, disable align err
+and eax, 0xffffffdf ; num exceps are proc by extern int
 mov cr0, eax
 
 ;
-; EAX = CR0 | 0x80000001
-; EBX = Memory size in KiB
-; ECX = UNKNOWN
-; EDX = UNKNOWN | Cursor position
-; ESI = UKNOWN
-; EDI = UKNOWN
+; DX contains cur pos!!!
 ;
 
 jmp 0x0008:main32
@@ -129,33 +147,36 @@ jmp halt16
 
 %include "slibs16/screen.inc"
 %include "slibs16/mem.inc"
+%include "slibs16/disk.inc"
 %include "slibs16/paging.inc"
-
-bits 32
 
 ;
 ; .text32 Section
 ;
+
+bits 32
 
 main32:
 mov ax, 0x0010
 mov ds, ax
 mov es, ax
 mov ss, ax
-mov esp, 0x00007c00
+mov esp, STACK_PTR
 
 call init_vga
 call enable_cur
 
-call set_cur_pos32
+call set_cur_pos
+
+mov bl, 0x07
+call set_color
 
 mov esi, rodata.ok
-call print_str32
+call print_str
 
-mov esi, rodata.setting_handlers
-call print_str32
+mov esi, rodata.setting_isrs
+call print_str
 
-push bx
 mov al, 0x0d
 mov bx, 0x0008
 mov edx, gp_fault
@@ -165,34 +186,33 @@ mov al, 0x0e
 mov bx, 0x0008
 mov edx, page_fault
 call set_handler
-pop bx
 
 mov esi, rodata.ok
-call print_str32
+call print_str
 
-mov esi, rodata.preparing_heap
-call print_str32
+mov esi, rodata.starting_pfa
+call print_str
 
 mov eax, 0x00010000
 mov edx, 0x00010000
 call init_heap
 
 mov esi, rodata.ok
-call print_str32
+call print_str
 
-mov esi, rodata.preparing_mem
-call print_str32
+;mov esi, rodata.preparing_mem
+;call print_str
 
-sub ebx, 0x00000400
-shl ebx, 0x0a ; to bytes
-mov ecx, 0x00020000
-call init_mem
+;sub ebx, 0x00000400
+;shl ebx, 0x0a ; to bytes
+;mov ecx, 0x00020000
+;call init_mem
 
-mov esi, rodata.ok
-call print_str32
+;mov esi, rodata.ok
+;call print_str
 
 mov esi, rodata.loading_hal
-call print_str32
+call print_str
 
 mov dx, 0x2820
 call init_pics
@@ -246,7 +266,7 @@ call init_dmacs
 sti ; it's save now to turn on the ints
 
 mov esi, rodata.ok
-call print_str32
+call print_str
 
 ;mov edi, 0x0000a000 ; curr page dir addr
 ;call crte_page_tbl
@@ -272,11 +292,7 @@ mov byte [pressed], 0x00
 jmp .wait_for_key
 
 .proc_enter:
-mov al, 0x0a
-call print_char32
-
-mov al, 0x0d
-call print_char32
+call print_nl
 jmp .key_read
 
 ;
@@ -285,7 +301,7 @@ jmp .key_read
 
 gp_fault:
 mov esi, rodata.gp_fault
-call print_str32
+call print_str
 jmp panic32
 
 ;
@@ -294,7 +310,7 @@ jmp panic32
 
 page_fault:
 mov esi, rodata.page_fault
-call print_str32
+call print_str
 jmp panic32
 
 ;
@@ -392,10 +408,22 @@ not byte [caps]
 
 .set_leds:
 mov dl, byte [caps]
-shl dl, 0x01
-or dl, byte [num]
-shl dl, 0x01
-or dl, byte [scroll]
+shl dl, 0x02
+
+mov bl, byte [num]
+or bl, bl
+jz .check_scroll
+
+bts dx, 0x01
+
+.check_scroll:
+mov bl, byte [scroll]
+or bl, bl
+jz .set_them
+
+bts dx, 0x00
+
+.set_them:
 call set_leds_kbd
 jmp .return
 
@@ -419,7 +447,7 @@ panic32:
 push esi
 %endif
 mov esi, rodata.panic
-call print_str32
+call print_str
 %ifdef _DEBUG
 pop esi
 %endif
@@ -488,16 +516,21 @@ jmp halt32
 ;
 
 rodata:
-.enabling_a20 db "enabling a20... ", 0x00
-.enabling_pm db "enabling pm... ", 0x00
-.setting_handlers db "setting hndlrs... ", 0x00
-.preparing_heap db "preparing heap... ", 0x00
-.preparing_mem db "preparing mem... ", 0x00
-.loading_hal db "loading hal... ", 0x00
-.gp_fault db "#gp! ", 0x00
-.page_fault db "#pf! ", 0x00
-.ok db "ok", 0x0a, 0x0d, 0x00
-.panic db "panic!", 0x0a, 0x0d, 0x00
+.enabling_a20 db "Enabling A20... ", 0x00
+.loading_drivers db "Loading drivers... ", 0x00
+
+.fdd_drv db "kernel  exe" ;"82077aa drv"
+
+.enabling_pm db "Enabling PM... ", 0x00
+.setting_isrs db "Setting ISRs... ", 0x00
+.starting_pfa db "Starting PMA... ", 0x00
+;.starting_mem db "Starting PFA... ", 0x00
+.loading_hal db "Loading HAL... ", 0x00
+.gp_fault db "General Protection Fault! ", 0x00
+.page_fault db "Page Fault! ", 0x00
+.ok db "Ok", 0x0a, 0x0d, 0x00
+.panic db "Panic!", 0x00
+
 .gdt:
 ; null desc
 dw 0x0000       ; limit
@@ -522,9 +555,11 @@ db 0x00         ; base
 db 10010010b    ; access byte
 db 11001111b    ; flags and limit
 db 0x00         ; base
+
 .gdt_ptr:
 dw $-.gdt-0x0001
 dd .gdt
+
 .idt_ptr:
 dw 0x07ff
 dd 0x00020000

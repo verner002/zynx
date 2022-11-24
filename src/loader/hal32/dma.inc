@@ -2,7 +2,7 @@
 ; 8237A Static Library
 ;
 ; Author: Jakub Verner
-; Date: 12-11-2022
+; Date: 15-11-2022
 ;
 
 cpu 486
@@ -20,7 +20,7 @@ bits 32
 
 init_dmacs:
 push ax
-mov al, 0x14
+mov al, 0x14 ; FIXME: bochs emul says that this comm is not supp???
 out 0x08, al ; deactive contr
 out 0xd0, al ; deactive contr
 
@@ -28,9 +28,9 @@ out 0x0d, al ; master clear, mask on
 out 0xda, al ; master clear, mask on
 
 mov al, 0xc0 ; cascade channel 4
-out 0xd6, al ; channel 4 is used for cascading
+out 0xd6, al ; channel 4 is used for casc
 
-mov al, 0x10
+mov al, 0x10 ; FIXME: bochs emul says that this comm is not supp???
 out 0xd0, al ; active contr
 out 0x08, al ; active contr
 pop ax
@@ -43,13 +43,13 @@ ret
 ; Output: Nothing
 ;
 
-mask_dma_chnls:
-push ax
-mov al, 0x0f
-out 0x0f, al
-out 0xde, al
-pop ax
-ret
+;mask_dma_chnls:
+;push ax
+;mov al, 0x0f
+;out 0x0f, al
+;out 0xde, al
+;pop ax
+;ret
 
 ;
 ; Unmask DMA Channels (Multichannel)
@@ -58,13 +58,13 @@ ret
 ; Output: Nothing
 ;
 
-unmask_dma_chnls:
-push ax
-xor al, al
-out 0x0f, al
-out 0xde, al
-pop ax
-ret
+;unmask_dma_chnls:
+;push ax
+;xor al, al
+;out 0x0f, al
+;out 0xde, al
+;pop ax
+;ret
 
 ;
 ; Mask DMA Channel Multichanel
@@ -73,29 +73,29 @@ ret
 ; Output: Nothing
 ;
 
-mask_dma_chnl_mltchnl:
-cmp cl, 0x07
-ja .return
+;mask_dma_chnl_mltchnl:
+;cmp cl, 0x07
+;ja .return
 
-push ax
-mov al, 0x01
+;push ax
+;mov al, 0x01
 
-cmp cl, 0x03
-ja .master
+;cmp cl, 0x03
+;ja .master
 
-shl al, cl
-out 0x0f, al
-pop ax
-ret
+;shl al, cl
+;out 0x0f, al
+;pop ax
+;ret
 
-.master:
-sub cl, 0x04
-shl al, cl
-out 0xde, al
-pop ax
+;.master:
+;sub cl, 0x04
+;shl al, cl
+;out 0xde, al
+;pop ax
 
-.return:
-ret
+;.return:
+;ret
 
 ;
 ; Unmask DMA Channel Multichannel
@@ -104,38 +104,38 @@ ret
 ; Output: Nothing
 ;
 
-unmask_dma_chnl_mltchnl:
-cmp cl, 0x07
-ja .return
+;unmask_dma_chnl_mltchnl:
+;cmp cl, 0x07
+;ja .return
 
-push ax
-push bx
-mov bl, 0x01
+;push ax
+;push bx
+;mov bl, 0x01
 
-cmp cl, 0x03
-ja .master
+;cmp cl, 0x03
+;ja .master
 
-shl bl, cl
-not bl
-in al, 0x0f
-and al, bl
-out 0x0f, al
-pop bx
-pop ax
-ret
+;shl bl, cl
+;not bl
+;in al, 0x0f
+;and al, bl
+;out 0x0f, al
+;pop bx
+;pop ax
+;ret
 
-.master:
-sub cl, 0x04
-shl bl, cl
-not bl
-in al, 0xde
-and al, bl
-out 0xde, al
-pop bx
-pop ax
+;.master:
+;sub cl, 0x04
+;shl bl, cl
+;not bl
+;in al, 0xde
+;and al, bl
+;out 0xde, al
+;pop bx
+;pop ax
 
-.return:
-ret
+;.return:
+;ret
 
 ;
 ; Active Master DMA Controller
@@ -144,9 +144,9 @@ ret
 ; Output: Noting
 ;
 
-active_master_dmac:
-push ax
-mov al, 0x10 ; dakp=0
+;active_master_dmac:
+;push ax
+;mov al, 0x10 ; dakp=0
              ; drwp=0
              ; extw=0
              ; prior=1
@@ -154,9 +154,9 @@ mov al, 0x10 ; dakp=0
              ; cond=0
              ; adh0=0
              ; spsp=0
-out 0xd0, al
-pop ax
-ret
+;out 0xd0, al
+;pop ax
+;ret
 
 ;
 ; Deactive Master DMA Controller
@@ -165,9 +165,9 @@ ret
 ; Output: Nothing
 ;
 
-deactive_master_dmac:
-push ax
-mov al, 0x14 ; dakp=0
+;deactive_master_dmac:
+;push ax
+;mov al, 0x14 ; dakp=0
              ; drwp=0
              ; extw=0
              ; prior=1
@@ -175,9 +175,9 @@ mov al, 0x14 ; dakp=0
              ; cond=1
              ; adh0=0
              ; spsp=0
-out 0xd0, al
-pop ax
-ret
+;out 0xd0, al
+;pop ax
+;ret
 
 ;
 ; Active Slave DMA Controller
@@ -186,9 +186,9 @@ ret
 ; Output: Nothing
 ;
 
-active_slave_dmac:
-push ax
-mov al, 0x10 ; dakp=0
+;active_slave_dmac:
+;push ax
+;mov al, 0x10 ; dakp=0
              ; drwp=0
              ; extw=0
              ; prior=1
@@ -196,9 +196,9 @@ mov al, 0x10 ; dakp=0
              ; cond=0
              ; adh0=0
              ; spsp=0
-out 0x08, al
-pop ax
-ret
+;out 0x08, al
+;pop ax
+;ret
 
 ;
 ; Deactive Slave DMA Controller
@@ -207,9 +207,9 @@ ret
 ; Output: Nonthing
 ;
 
-deactive_slave_dmac:
-push ax
-mov al, 0x14 ; dakp=0
+;deactive_slave_dmac:
+;push ax
+;mov al, 0x14 ; dakp=0
              ; drwp=0
              ; extw=0
              ; prior=1
@@ -217,9 +217,9 @@ mov al, 0x14 ; dakp=0
              ; cond=1
              ; adh0=0
              ; spsp=0
-out 0x08, al
-pop ax
-ret
+;out 0x08, al
+;pop ax
+;ret
 
 ;
 ; Initialize Floppy DMA Channel
@@ -236,7 +236,7 @@ out 0x0a, al
 call wait_dmas
 
 out 0x0c, al ; reset the flip-flop
-;call wait_dmas - we do calculation below so this line is not necessary
+;call wait_dmas - we do some calcs below so this line is not necessary
 
 mov ax, es
 mov dx, ax

@@ -2,29 +2,24 @@
 ; ZyNX Bootloader
 ;
 ; Author: Jakub Verner
-; Date: 03-11-2022
+; Date: 22-11-2022
 ;
 
 cpu 486
 bits 16
-org 0x7c00
+org 0x0800
+
+;%define _DEBUG
+
+%include "defs.inc"
 
 ;
-; Magic Numbers
+; .head Section
 ;
 
-%define DRV_NUM_PTR 0x7b00
-%define STACK_PTR   0x7c00
-%define FAT_PTR     0x7e00
-%define KERNEL_PTR  0x9000
+jmp short copy_main
 
-;
-; Header
-;
-
-jmp short main
-
-sect_track dw 0x0012
+sects_track dw 0x0012
 heads_cyld db 0x02
 sects_total dw 0x0b40
 
@@ -37,31 +32,57 @@ label db "ZyNX Samba"
 times 0x000b-($-label) db 0x20
 
 ;
-; .text Section
+; Copy Main
 ;
 
-main:
+copy_main:
 cli
 xor ax, ax
 mov ds, ax
 mov es, ax
 mov ss, ax
 mov sp, STACK_PTR
-mov byte [DRV_NUM_PTR], dl
 cld
 sti
 
+;
+; Initialize System Data Area
+;
+
+mov al, dl
+mov si, HEAD_PTR
+mov di, SDA_PTR
+mov cx, HEAD_SIZE ; without label
+stosb
+rep movsb
+
+;
+; Relocate Bootloader
+;
+
+mov si, BOOT_ADDR
+mov di, RELOC_ADDR
+mov cx, BOOT_SIZE
+rep movsb
+
+jmp near BOOT_MAIN
+
+;
+; Boot Main
+;
+
+boot_main:
 mov si, rodata.loading
 call print_str
 
-movzx ax, byte [sects_res]
+movzx ax, byte [SECTS_RES_PTR]
 mov bx, FAT_PTR
-movzx cx, byte [sects_fat]
+movzx cx, byte [SECTS_FAT_PTR]
 call read_sects
 jc panic
 
 mov al, 0x10
-mul byte [sects_clust]
+mul byte [SECTS_CLUST_PTR]
 mov dx, ax
 
 xor ax, ax
@@ -102,11 +123,9 @@ mov ax, word [di+0x000c]
 test byte [di+0x000b], 0x01
 jnz .read_next_dir_clust
 
-mov di, bx
-
 push ax
 mov ax, 0x0200
-movzx cx, byte [sects_clust]
+movzx cx, byte [SECTS_CLUST_PTR]
 mul cx
 mov cx, ax
 pop ax
@@ -119,24 +138,10 @@ add bx, cx
 call calc_next_clust
 jnz .read_next_file_clust
 
-cmp dword [di], "zexe"
-jnz panic
-
-cmp byte [di+0x0004], 0x19
-jnz panic
-
-cmp word [di+0x0005], 0x0386
-jnz panic
-
-mov di, word [di+0x0009]
-
-cmp word di, 0x0000
-jz panic
-
 mov si, rodata.ok
 call print_str
 
-jmp di
+jmp near KERNEL_PTR ; rel jump from offset RELOC_ADDR
 
 ;
 ; Print String
@@ -176,10 +181,10 @@ ret
 read_sect:
 pusha
 xor dx, dx
-div word [sect_track]
+div word [SECTS_TRACK_PTR]
 inc dx
 mov cl, dl
-div byte [heads_cyld]
+div byte [HEADS_CYLD_PTR]
 mov ch, al
 mov dh, ah
 
@@ -257,13 +262,13 @@ ret
 
 read_clust:
 pusha
-movzx cx, byte [sects_clust]
+movzx cx, byte [SECTS_CLUST_PTR]
 mul cx
 
 push cx
-movzx cx, byte [sects_res]
+movzx cx, byte [SECTS_RES_PTR]
 add ax, cx
-movzx cx, byte [sects_fat]
+movzx cx, byte [SECTS_FAT_PTR]
 add ax, cx
 pop cx
 
@@ -284,7 +289,7 @@ mov di, ax
 shr di, 0x01
 add di, ax
 and ax, 0x01
-mov ax, word [di+0x7e00]
+mov ax, word [di+FAT_PTR]
 jz .even_clust
 shr ax, 0x04
 
@@ -317,10 +322,13 @@ jmp halt
 ;
 
 rodata:
-.loading db "loading zynx... ", 0x00
-.kernel db "loader  exe"
-.ok db "ok", 0x0a, 0x0d, 0x00
-.panic db "panic!", 0x0a, 0x0d, 0x00
+.loading db "Loading kernel... ", 0x00
+.kernel db "kernel  exe"
+.ok db "Ok", 0x0a, 0x0d, 0x00
+.panic db "Panic!", 0x00
 
+void:
 times 0x01fe-($-$$) db 0x00
+
+signature:
 dw 0xaa55

@@ -2,7 +2,7 @@
 ; Keyboard (32-bit) Static Library
 ;
 ; Author: Jakub Verner
-; Date: 14-11-2022
+; Date: 15-11-2022
 ;
 
 cpu 486
@@ -466,8 +466,8 @@ ret
 
 send_kbd_cmd:
 push ax
-push cx
-mov cx, 0xffff ; this delay is really important!!!
+push ecx
+mov ecx, 0x000fffff ; this delay is really important!!!
 
 .again:
 in al, 0x64
@@ -475,16 +475,16 @@ in al, 0x64
 test al, 0x02
 jz .send_cmd
 
-dec cx
+dec ecx
 jnz .again
 
-pop cx
+pop ecx
 pop ax
 stc
 ret
 
 .send_cmd:
-pop cx
+pop ecx
 pop ax
 out 0x60, al
 ;clc

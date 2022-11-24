@@ -2,7 +2,7 @@
 ; Screen (32-bit) Static Library
 ;
 ; Author: Jakub Verner
-; Date: 14-11-2022
+; Date: 22-11-2022
 ;
 
 %ifndef _SCREEN32
@@ -48,12 +48,6 @@ db  0x0c, 0x00, 0x0f, 0x08, 0x00
 ;db  0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f
 ;db  0x0c, 0x00, 0x0f, 0x08, 0x00
 
-cur_pos:
-.cur_x db 0x00
-.cur_y db 0x00
-
-fb_col db 0x07
-
 ;
 ; Set Cursor Position
 ;
@@ -61,9 +55,9 @@ fb_col db 0x07
 ; Output: Nothing
 ;
 
-set_cur_pos32:
-mov word [cur_pos], dx
-call set_cur_pos
+set_cur_pos:
+mov word [CUR_POS_PTR], dx
+call write_cur_loc_reg
 ret
 
 ;
@@ -73,9 +67,9 @@ ret
 ; Output: DH (row), DL (column)
 ;
 
-get_cur_pos32:
-mov dx, word [cur_pos]
-ret
+;get_cur_pos:
+;mov dx, word [CUR_POS_PTR]
+;ret
 
 ;
 ; Set Foreground & Background Color
@@ -84,8 +78,8 @@ ret
 ; Output: Nothing
 ;
 
-set_col32:
-mov byte [fb_col], BL
+set_color:
+mov byte [COLOR_PTR], BL
 ret
 
 ;
@@ -95,9 +89,9 @@ ret
 ; Output: BL (fb col)
 ;
 
-get_col32:
-mov bl, byte [fb_col]
-ret
+;get_color:
+;mov bl, byte [COLOR_PTR]
+;ret
 
 ;
 ; Scroll Down
@@ -106,7 +100,7 @@ ret
 ; Output: Nothing
 ;
 
-scroll_down32:
+scroll_down:
 pushad
 mov edi, 0x000b8000
 mov esi, edi
@@ -115,7 +109,7 @@ add esi, 0x000000a0
 mov cx, 0x0780
 rep movsw
 
-mov ah, byte [fb_col]
+mov ah, byte [COLOR_PTR]
 mov al, 0x20
 mov cx, 0x50
 rep stosw
@@ -129,11 +123,11 @@ ret
 ; Output: Nothing
 ;
 
-print_char32:
+print_char:
 push eax
 push ebx
 push dx
-call get_cur_pos32
+mov dx, word [CUR_POS_PTR]
 
 cmp al, 0x20
 jb .special_char
@@ -151,7 +145,7 @@ shl ebx, 0x01
 add ebx, 0x000b8000
 pop ax
 
-mov ah, byte [fb_col]
+mov ah, byte [COLOR_PTR]
 mov word [ebx], ax
 
 cmp dl, 0x4f
@@ -160,7 +154,7 @@ jnb .print_nlcr
 inc dl
 
 .set_cur_pos:
-call set_cur_pos32
+call set_cur_pos
 
 .return:
 pop dx
@@ -183,11 +177,11 @@ jmp .set_cur_pos
 
 .print_tab:
 mov al, 0x20
-mov cx, 0x0003
 
-.print_space:
-call print_char32
-loop .print_space
+call print_char
+call print_char
+call print_char
+
 jmp .return
 
 .print_nlcr:
@@ -201,7 +195,7 @@ inc dh
 jmp .set_cur_pos
 
 .scroll_down:
-call scroll_down32
+call scroll_down
 jmp .set_cur_pos
 
 ;
@@ -211,13 +205,13 @@ jmp .set_cur_pos
 ; Output: Nothing
 ;
 
-print_str32:
+print_str:
 push ax
 push esi
 jmp .load_char
 
 .print_char:
-call print_char32
+call print_char
 
 .load_char:
 lodsb
@@ -238,10 +232,10 @@ ret
 print_nl:
 push ax
 mov al, 0x0a
-call print_char32
+call print_char
 
 mov al, 0x0d
-call print_char32
+call print_char
 pop ax
 ret
 
@@ -269,7 +263,7 @@ add al, 'a'-'0'-0x0a
 
 .num:
 add al, '0'
-call print_char32
+call print_char
 pop ax
 
 loop .print_digit
