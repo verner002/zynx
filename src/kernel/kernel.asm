@@ -2,7 +2,7 @@
 ; ZyNX Kernel
 ;
 ; Author: Jakub Verner
-; Date: 24-11-2022
+; Date: 26-11-2022
 ;
 
 cpu 486
@@ -18,44 +18,48 @@ org 0x2000
 
 bits 16
 
+;
+; Main
+;
+
 main16:
 mov si, rodata.enabling_a20
 call print_str16
 
 call check_a20
-jnc .continue
+jnc .a20_enabled
 
 call enable_a20_bios
 
 call check_a20
-jnc .continue
+jnc .a20_enabled
 
 call enable_a20_kbd
 
 call check_a20
-jnc .continue
+jnc .a20_enabled
 
 call enable_a20_p92
 
 call check_a20
 jc panic16
 
-.continue:
+.a20_enabled:
 mov si, rodata.ok
 call print_str16
 
 mov si, rodata.loading_drivers
 call print_str16
 
-mov bx, 0x1000
-mov es, bx
-xor bx, bx ; ES:BX = 0x00010000
+;mov bx, 0x1000
+;mov es, bx
+;xor bx, bx ; ES:BX = 0x00010000
 
-mov si, rodata.fdd_drv
-call load_file
-jc panic16
+;mov si, rodata.fdd_drv
+;call load_file
+;jc panic16
 
-mov es, bx
+;mov es, bx
 
 mov si, rodata.ok
 call print_str16
@@ -66,7 +70,7 @@ call print_str16
 mov ax, 0xe801 ; handles mem holes under 16 MiB
 xor cx, cx
 xor dx, dx
-int 0x15
+int 0x15 ; get mem size up to 4 GiBs
 jc panic16
 
 cmp ah, 0x86
@@ -75,16 +79,16 @@ jz panic16
 cmp ah, 0x80
 jz panic16
 
-jcxz .axbx
+jcxz .int15_e801_axbx
 
 ;mov ax, cx
 mov bx, dx
 
-.axbx:
+.int15_e801_axbx:
 ;movzx eax, ax
 movzx ebx, bx
 
-shl ebx, 0x06 ; mem size above 16 MiB
+shl ebx, 0x06 ; to KiBs
 jz panic16
 
 add ebx, 0x00004000 ; 16 MiB
@@ -109,9 +113,37 @@ mov ah, 0x03
 xor bh, bh
 int 0x10 ; get cur pos
 
+call get_vbe_info
+jc panic16
+
+push ds
+mov si, word [di+0x000e] ; offset
+mov ds, word [di+0x0010] ; segment
+
+mov bx, 0x0105
+
+.look_for_vmode:
+lodsw
+cmp ax, 0xffff
+jz panic16
+
+xor ax, bx
+jnz .look_for_vmode
+
+call get_vbe_vmode_info
+
+;or bh, 0x80
+call set_vbe_vmode
+jc panic16
+
+;cmp ax, 0x004f
+;jnz panic16
+
 mov word [CUR_POS_PTR], dx
 
-call turn_off_motor
+xor al, al
+mov dx, 0x3f2
+out dx, al ; turn off fdd motor
 
 cli
 
@@ -121,15 +153,15 @@ lgdt [rodata.gdt_ptr]
 lidt [rodata.idt_ptr]
 
 mov eax, cr0
-or eax, 0x80050001 ; enable pg, pe and wr protect, disable align err
-and eax, 0xffffffdf ; num exceps are proc by extern int
+or eax, 0x80010001 ; enable pg, wr protect and pe
+and eax, 0xfffdffdf ; enable cache fills, wr-through and invals and disable align err, num exceps are proc by extern int
 mov cr0, eax
 
-;
-; DX contains cur pos!!!
-;
+mov eax, cr4
+and eax, 0xffffffec ; disable pse, pvi and vme
+mov cr4, eax
 
-jmp 0x0008:main32
+jmp 0x0008:main32 ; enter pm
 
 ;
 ; Panic
@@ -140,6 +172,10 @@ mov si, rodata.panic
 call print_str16
 ;jmp halt16
 
+;
+; Halt
+;
+
 halt16:
 cli
 hlt
@@ -148,6 +184,7 @@ jmp halt16
 %include "slibs16/screen.inc"
 %include "slibs16/mem.inc"
 %include "slibs16/disk.inc"
+%include "slibs16/vesa.inc"
 %include "slibs16/paging.inc"
 
 ;
@@ -156,6 +193,10 @@ jmp halt16
 
 bits 32
 
+;
+; Main
+;
+
 main32:
 mov ax, 0x0010
 mov ds, ax
@@ -163,9 +204,10 @@ mov es, ax
 mov ss, ax
 mov esp, STACK_PTR
 
-call init_vga
+;call init_vga
 call enable_cur
 
+mov dx, word [CUR_POS_PTR]
 call set_cur_pos
 
 mov bl, 0x07
@@ -246,7 +288,7 @@ jc panic32
 cmp dl, 0x3f
 jz .scan_code_set_ok
 
-cmp dl, 0x03
+cmp dl, 0x03 ; FIXME: some kbds reports this num???
 jnz panic32
 
 .scan_code_set_ok:
@@ -316,7 +358,7 @@ jmp panic32
 ;
 ; Keyboard Handler
 ;
-; Scan Code Set 3
+; Note: Scan Code Set 3
 ;
 
 kbd_handler:
@@ -492,6 +534,11 @@ call print_hex32
 
 call print_nl
 %endif
+;jmp halt32
+
+;
+; Halt
+;
 
 halt32:
 cli

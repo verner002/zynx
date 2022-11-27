@@ -9,23 +9,6 @@
 %define _DISK16
 
 ;
-; Turn Off Motor
-;
-; Input: Nothing
-; Output: Nothing
-;
-
-turn_off_motor:
-push ax
-push dx
-xor al, al
-mov dx, 0x3f2
-out dx, al ; turn off the fdd's motor
-pop dx
-pop ax
-ret
-
-;
 ; Reset Disk System
 ;
 ; Input: DL (drv num)

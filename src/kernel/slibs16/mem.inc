@@ -88,27 +88,27 @@ enable_a20_kbd:
 cli
 push ax
 mov al, 0xad ; disable first ps/2
-call wait_for_in_buff
+call wait_for_ps2ib16
 out 0x64, al
 mov al, 0xd0 ; read controller out. port
-call wait_for_in_buff
+call wait_for_ps2ib16
 out 0x64, al
 
-call wait_for_out_buff
+call wait_for_ps2ob16
 in al, 0x60
 or al, 0x02 ; enable a20 gate
 
 push ax
 mov al, 0xd1 ; write controller out. port
-call wait_for_in_buff
+call wait_for_ps2ib16
 out 0x64, al
 pop ax
 
-call wait_for_in_buff
+call wait_for_ps2ib16
 out 0x60, al
 
 mov al, 0xae ; enable first ps/2
-call wait_for_in_buff
+call wait_for_ps2ib16
 out 0x64, al
 pop ax
 sti
@@ -138,7 +138,7 @@ ret
 ; Output: Nothing
 ;
 
-wait_for_in_buff:
+wait_for_ps2ib16:
 push ax
 
 .again:
@@ -156,7 +156,7 @@ ret
 ; Output: Nothing
 ;
 
-wait_for_out_buff:
+wait_for_ps2ob16:
 push ax
 
 .again:
