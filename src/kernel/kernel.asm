@@ -48,8 +48,8 @@ jc panic16
 mov si, rodata.ok
 call print_str16
 
-mov si, rodata.loading_drivers
-call print_str16
+;mov si, rodata.loading_drivers
+;call print_str16
 
 ;mov bx, 0x1000
 ;mov es, bx
@@ -61,8 +61,8 @@ call print_str16
 
 ;mov es, bx
 
-mov si, rodata.ok
-call print_str16
+;mov si, rodata.ok
+;call print_str16
 
 mov si, rodata.enabling_pm
 call print_str16
@@ -129,15 +129,28 @@ jz panic16
 
 xor ax, bx
 jnz .look_for_vmode
+pop ds
 
+mov cx, bx
 call get_vbe_vmode_info
+jc panic16
 
+mov ax, word [di+0x0010]
+mov word [VIDEO_FRAME_PITCH_PTR], ax
+
+mov al, byte [di+0x0019]
+mov byte [VIDEO_FRAME_BPP_PTR], al
+
+mov eax, dword [di+0x0031]
+mov dword [VIDEO_FRAME_BUFF_PTR], eax
+
+mov ax, word [di+0x003b]
+mov word [VIDEO_FRAME_LIN_PITCH_PTR], ax
+
+or bh, 0x40 ; flat lin mode, FIXME: does this work?
 ;or bh, 0x80
 call set_vbe_vmode
 jc panic16
-
-;cmp ax, 0x004f
-;jnz panic16
 
 mov word [CUR_POS_PTR], dx
 
@@ -203,6 +216,43 @@ mov ds, ax
 mov es, ax
 mov ss, ax
 mov esp, STACK_PTR
+
+;mov eax, 0x0000e000
+;mov word [eax+0x00000e00], 0xc000
+
+mov eax, dword [VIDEO_FRAME_BUFF_PTR]
+
+;movzx ebx, word [VIDEO_FRAME_PITCH_PTR]
+
+;push eax
+;mov eax, ebx
+;mov ebx, 2
+;mul ebx
+;mov ebx, eax
+;pop eax
+
+;movzx ecx, byte [VIDEO_FRAME_BPP_PTR]
+;shr ecx, 0x03
+
+;push eax
+;mov eax, ecx
+;mov ecx, 2
+;mul ecx
+;mov ecx, ebx
+;pop eax
+
+;add eax, ebx
+;add eax, ecx
+
+;mov ebx, eax
+;call map_page
+
+mov ecx, 1024*768
+
+.lop:
+mov byte [eax], 0x0f
+inc eax
+loop .lop
 
 ;call init_vga
 call enable_cur
@@ -556,7 +606,7 @@ jmp halt32
 %include "slibs32/screen.inc"
 %include "slibs32/heap.inc"
 %include "slibs32/mem.inc"
-;%include "slibs32/paging.inc"
+%include "slibs32/paging.inc"
 
 ;
 ; .rodata Section
@@ -564,9 +614,9 @@ jmp halt32
 
 rodata:
 .enabling_a20 db "Enabling A20... ", 0x00
-.loading_drivers db "Loading drivers... ", 0x00
+;.loading_drivers db "Loading drivers... ", 0x00
 
-.fdd_drv db "kernel  exe" ;"82077aa drv"
+;.fdd_drv db "kernel  exe" ;"82077aa drv"
 
 .enabling_pm db "Enabling PM... ", 0x00
 .setting_isrs db "Setting ISRs... ", 0x00

@@ -15,25 +15,25 @@
 ; Output: EAX (page dir ptr)
 ;
 
-crte_page_dir:
-push ecx
-push edi
-mov edi, 0x00001000
-call balloc
+;crte_page_dir:
+;push ecx
+;push edi
+;mov edi, 0x00001000
+;call balloc
 ;jz .terminate
 
-mov eax, dword [eax+5] ; store linked-list node's addr somewhere
+;mov eax, dword [eax+5] ; store linked-list node's addr somewhere
 
-mov edi, eax
-mov ecx, 0x00000400
+;mov edi, eax
+;mov ecx, 0x00000400
 
-push eax
-mov eax, 0x00000002
-rep stosd
-pop eax
-pop edi
-pop ecx
-ret
+;push eax
+;mov eax, 0x00000002
+;rep stosd
+;pop eax
+;pop edi
+;pop ecx
+;ret
 
 ;
 ; Create Page Table
@@ -42,36 +42,36 @@ ret
 ; Output: Nothing
 ;
 
-crte_page_tbl:
-mov esi, edi
+;crte_page_tbl:
+;mov esi, edi
 
-mov cx, 0x0400
+;mov cx, 0x0400
 
-.next_entry:
-lodsd
-test al, 0x01
-jz .found_aval
-dec cx
-jnz .next_entry
-stc
-xor eax, eax
-ret
+;.next_entry:
+;lodsd
+;test al, 0x01
+;jz .found_aval
+;dec cx
+;jnz .next_entry
+;stc
+;xor eax, eax
+;ret
 
-.found_aval:
-sub esi, 0x00000004
+;.found_aval:
+;sub esi, 0x00000004
 
-mov edi, 0x00001000
-call balloc
+;mov edi, 0x00001000
+;call balloc
 ;jz .terminate
 
-mov eax, dword [eax+5] ; store linked-list node's addr somewhere
+;mov eax, dword [eax+5] ; store linked-list node's addr somewhere
 
-or al, 0x03
+;or al, 0x03
 
-mov dword [esi], eax
-and al, 0xfc
-clc
-ret
+;mov dword [esi], eax
+;and al, 0xfc
+;clc
+;ret
 
 ;
 ; Map Page
@@ -89,7 +89,7 @@ mov ecx, ebx
 shr ebx, 0x16
 shl ebx, 0x02
 
-add ebx, 0x0000a000
+add ebx, 0x0000e000
 
 mov ebx, dword [ebx]
 and ebx, 0xfffff000

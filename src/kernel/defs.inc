@@ -67,6 +67,14 @@
     ;%ifndef COLOR_PTR
     %define COLOR_PTR SDA_PTR+0x0000000f
     ;%endif
+
+    ;%ifndef VIDEO_FRAME_BUFF_PTR
+    %define VIDEO_FRAME_BUFF_PTR SDA_PTR+0x00000010
+    ;%endif
+
+    %define VIDEO_FRAME_PITCH_PTR SDA_PTR+0x00000014
+    %define VIDEO_FRAME_BPP_PTR SDA_PTR+0x00000016
+    %define VIDEO_FRAME_LIN_PITCH_PTR SDA_PTR+0x00000017
 %endif
 
 %ifndef STACK_PTR
