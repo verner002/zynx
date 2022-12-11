@@ -185,12 +185,12 @@ div word [SECTS_TRACK_PTR]
 inc dx
 mov cl, dl
 div byte [HEADS_CYLD_PTR]
+mov dh, dl
 mov ch, al
-mov dh, ah
 
 mov dl, byte [DRV_NUM_PTR]
 
-mov di, 0x0002
+mov di, 0x0003
 
 .try_again:
 mov ax, 0x0201
@@ -198,13 +198,11 @@ stc
 int 0x13
 jnc .return
 
-or di, di
+dec di
 jz .terminate
 
 xor ah, ah
 int 0x13
-
-dec di
 jmp .try_again
 
 .terminate:

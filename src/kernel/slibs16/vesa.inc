@@ -20,7 +20,7 @@ push ax
 push bx
 mov ax, 0x4f00
 ;xor ax,ax
-;mov ds, ax
+;mov es, ax
 mov di, 0xd000
 mov dword [di], 'VBE2'
 int 0x10
@@ -47,14 +47,14 @@ ret
 ; Get VESA BIOS Video Mode Information
 ;
 ; Input: CX (vesa mode num)
-; Output: (ES:)DI (ptr to vbe mode info blk),CF (set on err)
+; Output: (ES:)DI (ptr to vbe mode info blk), CF (set on err)
 ;
 
 get_vbe_vmode_info:
 push ax
 mov ax, 0x4f01
 ;xor ax, ax
-;mov ds, ax
+;mov es, ax
 mov di, 0xd200
 int 0x10
 

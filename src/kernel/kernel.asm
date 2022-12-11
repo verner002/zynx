@@ -135,6 +135,9 @@ mov cx, bx
 call get_vbe_vmode_info
 jc panic16
 
+test byte [di+0x0000], 0x80 ; low attr byte, supps flat lin mode?
+jz panic16
+
 mov ax, word [di+0x0010]
 mov word [VIDEO_FRAME_PITCH_PTR], ax
 
@@ -160,13 +163,13 @@ out dx, al ; turn off fdd motor
 
 cli
 
-call init_paging
+;call init_paging
 
 lgdt [rodata.gdt_ptr]
 lidt [rodata.idt_ptr]
 
 mov eax, cr0
-or eax, 0x80010001 ; enable pg, wr protect and pe
+or eax, 0x00010001 ; enable pg, wr protect and pe
 and eax, 0xfffdffdf ; enable cache fills, wr-through and invals and disable align err, num exceps are proc by extern int
 mov cr0, eax
 
